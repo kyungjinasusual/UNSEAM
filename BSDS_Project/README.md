@@ -1,166 +1,149 @@
-# BSDS for Emo-Film Analysis
+# Event Segmentation Methods for fMRI Analysis
 
-**Bayesian Switching Dynamical Systems (BSDS)** applied to emotional film viewing fMRI data.
+뇌 영상 데이터에서 event boundary를 탐지하기 위한 세 가지 방법론 구현.
 
 ## Overview
 
-This repository contains:
-- **`bsds_complete/`**: Full Python implementation of BSDS with AR dynamics
-- **Original MATLAB code**: From Taghia & Cai (2018) Nature Communications
-- **CLI Pipeline**: One-command analysis for Emo-Film data
-- **Analysis tools**: Visualization and statistical summaries
+이 프로젝트는 naturalistic fMRI 데이터의 event segmentation을 위한 세 가지 접근법을 제공합니다:
+
+| Method | 특징 | 논문 |
+|--------|------|------|
+| **BSDS** | Bayesian + AR dynamics + Factor model | Taghia et al. 2018 |
+| **HMM-Baldassano** | Event-sequential HMM | Baldassano et al. 2017 |
+| **HMM-Yang** | Standard GaussianHMM | Yang et al. 2023 |
 
 ## Quick Start
 
-### Option 1: Full Pipeline (Recommended)
+### 설치
 
 ```bash
-# Analyze BigBuckBunny movie for all subjects
-python run_emofilm_bsds.py --task BigBuckBunny --subjects all --n-states 5
-
-# Custom parameters
-python run_emofilm_bsds.py \
-    --task FirstBite \
-    --subjects sub-S01 sub-S02 sub-S03 \
-    --n-states 8 \
-    --max-ldim 15 \
-    --n-iter 100 \
-    --output ./my_results
+pip install numpy scipy scikit-learn hmmlearn nilearn nibabel matplotlib
 ```
 
-### Option 2: Python API
+### 방법 비교 실행
 
-```python
-from bsds_complete import BSDSModel, BSDSConfig
+```bash
+# 시뮬레이션 데이터로 세 가지 방법 비교
+python compare_methods.py --n-events 8
 
-# Configure model
-config = BSDSConfig(
-    n_states=5,
-    max_ldim=10,
-    n_iter=100,
-    TR=2.0
-)
+# Emo-Film 데이터로 BSDS 실행
+python run_emofilm_bsds.py --task BigBuckBunny --n-states 8
 
-# Fit model
-model = BSDSModel(config)
-model.fit(data_list)  # List of (ROI x Time) arrays
-
-# Get results
-states = model.get_states()
-stats = model.get_summary_statistics()
-print(f"Occupancy: {stats['occupancy_group']}")
-print(f"Mean lifetime: {stats['mean_lifetime_group']}")
+# Emo-Film 데이터로 HMM 실행
+python run_hmm_baseline.py --dataset emofilm --task BigBuckBunny --n-events 8
 ```
 
 ## Project Structure
 
 ```
 BSDS_Project/
-├── bsds_complete/               # COMPLETE Python implementation
-│   ├── core/
-│   │   ├── model.py            # Main BSDSModel class
-│   │   └── config.py           # Configuration
-│   ├── inference/
-│   │   ├── hmm.py              # Forward-Backward, Viterbi
-│   │   └── latent.py           # Latent variable inference
-│   ├── learning/
-│   │   ├── factor_learning.py  # Factor loadings, ARD
-│   │   ├── transition_learning.py  # HMM transitions
-│   │   └── ar_learning.py      # AR(1) dynamics (KEY!)
-│   ├── analysis/
-│   │   ├── statistics.py       # Occupancy, lifetime, etc.
-│   │   └── visualization.py    # Plots and reports
-│   └── utils/
-│       ├── math_utils.py       # Numerical utilities
-│       └── data_utils.py       # Data preprocessing
-├── Taghia_Cai_NatureComm_2018-main/  # Original MATLAB
-├── run_emofilm_bsds.py         # CLI pipeline
-├── test_bsds_complete.py       # Test suite
-└── papers/                     # Reference papers
+├── bsds_complete/           # BSDS Python 구현 (Taghia 2018)
+│   ├── core/               # BSDSModel, BSDSConfig
+│   ├── inference/          # HMM, Latent variable inference
+│   ├── learning/           # Factor, AR, Transition learning
+│   ├── analysis/           # Statistics, Visualization
+│   └── utils/              # Math, Data utilities
+│
+├── hmm_baseline/            # HMM Baseline 구현
+│   ├── model.py            # HMMEventSegment (Baldassano 스타일)
+│   ├── hmmlearn_wrapper.py # HMMLearnWrapper (Yang 스타일)
+│   ├── event_segmentation.py # Pure Python HMM
+│   ├── comparison.py       # BSDS vs HMM 비교
+│   └── data_loaders.py     # 데이터셋 로더
+│
+├── Taghia_Cai_NatureComm_2018-main/  # Original MATLAB (참조용)
+├── docs/                    # 상세 문서
+│   └── HMM_BASELINE_MANUAL.md
+├── scripts/                 # SLURM job scripts
+│   ├── run_comparison.slurm
+│   └── run_hmm_emofilm.slurm
+├── papers/                  # Reference papers (PDF)
+│
+├── run_emofilm_bsds.py     # BSDS CLI
+├── run_hmm_baseline.py     # HMM CLI
+├── compare_methods.py      # 방법 비교 스크립트
+└── test_bsds_complete.py   # 테스트
 ```
 
-## Implementation Status
+## Python API
 
-| Component | Status | File |
-|-----------|--------|------|
-| HMM Forward-Backward | ✅ Complete | `inference/hmm.py` |
-| Viterbi Decoding | ✅ Complete | `inference/hmm.py` |
-| Latent Variable (Q(X)) | ✅ Complete | `inference/latent.py` |
-| Factor Loadings (Q(L)) | ✅ Complete | `learning/factor_learning.py` |
-| ARD Parameters (Q(nu)) | ✅ Complete | `learning/factor_learning.py` |
-| Noise Precision (psi) | ✅ Complete | `learning/factor_learning.py` |
-| **AR(1) Dynamics** | ✅ Complete | `learning/ar_learning.py` |
-| **VAR M-step** | ✅ Complete | `learning/ar_learning.py` |
-| Transition Probs (Q(theta)) | ✅ Complete | `learning/transition_learning.py` |
-| Occupancy/Lifetime Stats | ✅ Complete | `analysis/statistics.py` |
-| Visualization | ✅ Complete | `analysis/visualization.py` |
+### BSDS
 
-## CLI Reference
+```python
+from bsds_complete import BSDSModel, BSDSConfig
 
-```
-usage: run_emofilm_bsds.py [-h] [--mode {full,extract,fit,analyze}]
-                          [--data-dir DATA_DIR]
-                          [--task {BigBuckBunny,FirstBite,YouAgain,Rest,all}]
-                          [--subjects SUBJECTS [SUBJECTS ...]]
-                          [--n-states N_STATES] [--max-ldim MAX_LDIM]
-                          [--n-iter N_ITER] [--TR TR]
-                          [--output OUTPUT]
+config = BSDSConfig(n_states=8, max_ldim=10, n_iter=100)
+model = BSDSModel(config)
+model.fit(data_list)  # List of (ROI x Time) arrays
 
-Key Arguments:
-  --mode          Pipeline mode: full, extract, fit, or analyze
-  --task          Movie to analyze (BigBuckBunny, FirstBite, YouAgain, Rest)
-  --subjects      Subject IDs or 'all'
-  --n-states, -K  Number of brain states (default: 5)
-  --max-ldim, -L  Latent dimension (default: 10)
-  --n-iter        VB iterations (default: 100)
-  --TR            Repetition time in seconds (default: 2.0)
-  --output, -o    Output directory
+states = model.get_states()
+stats = model.get_summary_statistics()
 ```
 
-## Example Results
+### HMM-Baldassano (Event-Sequential)
 
-After running the pipeline, you get:
+```python
+from hmm_baseline import HMMEventSegment, HMMConfig
 
-```
-results/bsds_BigBuckBunny_5states_20251215/
-├── bsds_..._model.pkl          # Fitted model
-├── bsds_..._config.json        # Configuration
-├── bsds_..._report.txt         # Text summary
-├── bsds_..._summary.png        # Visualization
-├── bsds_..._results.json       # All statistics
-├── sub-S01_BigBuckBunny_states.npy  # State sequences
-└── ...
+config = HMMConfig(n_events=8, n_iter=100)
+model = HMMEventSegment(config)
+model.fit(data_list)  # List of (Time x Voxel) arrays
+
+boundaries = model.get_event_boundaries(subject_idx=0)
 ```
 
-## Dependencies
+### HMM-Yang (Standard GaussianHMM)
+
+```python
+from hmm_baseline.hmmlearn_wrapper import HMMLearnWrapper
+
+model = HMMLearnWrapper(n_states=8, covariance_type='diag')
+model.fit(data_list)
+
+boundaries = model.get_event_boundaries(data_list[0])
+```
+
+## 비교 결과 예시
+
+시뮬레이션 데이터 (150 timepoints, 6 events):
+
+| Method | Avg F1 | Precision | Recall |
+|--------|--------|-----------|--------|
+| BSDS | 1.000 | 1.000 | 1.000 |
+| HMM-Baldassano | 0.800 | 0.800 | 0.800 |
+| HMM-Yang | 1.000 | 1.000 | 1.000 |
+
+## 랩 서버 실행
 
 ```bash
-pip install numpy scipy scikit-learn nilearn nibabel matplotlib
+# SLURM으로 job 제출
+sbatch scripts/run_hmm_emofilm.slurm
+
+# 또는 특정 task 지정
+sbatch --export=TASK=FirstBite scripts/run_hmm_emofilm.slurm
 ```
 
-## Testing
+자세한 내용: `scripts/README.md`
 
-```bash
-python test_bsds_complete.py
-```
+## Documentation
 
-Expected output:
-```
-==================================================
-BSDS Complete - Test Suite
-==================================================
-  ✓ PASS: Imports
-  ✓ PASS: Synthetic Data
-  ✓ PASS: Save/Load
-
-Total: 3/3 tests passed
-```
+- **HMM Baseline 상세**: `docs/HMM_BASELINE_MANUAL.md`
+- **Emo-Film 가이드**: `EMO_FILM_GUIDE.md`
+- **BSDS 분석 리포트**: `ANALYSIS_REPORT.md`
 
 ## References
 
-1. Taghia, J., Cai, M. B., et al. (2018). Uncovering hidden brain state dynamics that regulate performance and decision-making during cognition. *Nature Communications*, 9, 2505.
+1. **Taghia et al. (2018)** - BSDS 원본
+   - "Uncovering hidden brain state dynamics..."
+   - *Nature Communications*, 9, 2505
 
-2. Schaefer, A., et al. (2018). Local-Global Parcellation of the Human Cerebral Cortex from Intrinsic Functional Connectivity MRI. *Cerebral Cortex*.
+2. **Baldassano et al. (2017)** - Event-sequential HMM
+   - "Discovering event structure in continuous narrative..."
+   - *Neuron*, 95(3), 709-721
+
+3. **Yang et al. (2023)** - Standard GaussianHMM
+   - "The default network dominates neural responses..."
+   - *Nature Communications*, 14, 4400
 
 ## License
 
@@ -168,4 +151,4 @@ Total: 3/3 tests passed
 - Python implementation: MIT License
 
 ---
-*Last updated: 2025-12-15*
+*Last updated: 2026-01-14*

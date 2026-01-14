@@ -25,8 +25,12 @@ nilearn_cache/
 *.npy
 *.pkl
 
-# Results (regenerable)
-results/
+# Deprecated code (backed up)
+deprecated/
+
+# Large result files (but keep JSON/PNG)
+results/**/*.pkl
+results/**/*.npy
 
 # OS
 .DS_Store
