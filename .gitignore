@@ -73,6 +73,9 @@ logs/
 .Trash/
 desktop.ini
 
+# Large backup files
+*_backup_*.zip
+
 # Keep directory structure
 !data/raw/.gitkeep
 !data/processed/.gitkeep
@@ -83,3 +86,4 @@ desktop.ini
 !results/figures/.gitkeep
 !results/tables/.gitkeep
 !results/statistics/.gitkeep
+data/studyforrest/
